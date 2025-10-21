@@ -1,234 +1,100 @@
-import argparse
-import io
-import json
-import sys
+# Write your code here
+import random
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--import_from")
-parser.add_argument("--export_to")
-
-memory = io.StringIO()
+cards_dict = {}
 
 
-class LoggerOut:
-    def __init__(self):
-        self.terminal = sys.stdout
+def program():
+    while True:
+        print("Input the action (add, remove, import, export, ask, exit):")
+        action = input()
 
-    def write(self, message):
-        self.terminal.write(message)
-        memory.write(f"{message}")
+        def add_cards():
+            card = input(f"The card:\n")
+            if card in cards_dict:
+                while card in cards_dict:
+                    print(f'The term "{card}" already exists. Try again:')
+                    card = input()
+            definition = input(f"The definition:\n")
+            if definition in cards_dict.values():
+                while definition in cards_dict.values():
+                    print(
+                        f'The definition "{definition}" already exists. Try again:')
+                    definition = input()
+            cards_dict[card] = definition
+            print(f'The pair ("{card}":"{definition}") has been added')
 
-    def flush(self):
-        pass
-
-
-class LoggerIn:
-    def __init__(self):
-        self.terminal = sys.stdin
-
-    def readline(self):
-        entry = self.terminal.readline()
-        memory.write(f"> {entry}")
-        return entry
-
-
-sys.stdout = LoggerOut()
-sys.stdin = LoggerIn()
-
-cmd_add = "add"
-cmd_rem = "remove"
-cmd_import = "import"
-cmd_export = "export"
-cmd_ask = "ask"
-cmd_exit = "exit"
-cmd_log = "log"
-cmd_hardest = "hardest card"
-cmd_reset = "reset stats"
-
-
-class Card:
-    def __init__(self):
-        self.term = ""
-        self.definition = ""
-        self.mistakes = 0
-
-    def count_mistakes(self):
-        self.mistakes += 1
-
-    def to_dict(self):
-        return {
-            "term": self.term,
-            "definition": self.definition,
-            "mistakes": self.mistakes
-        }
-
-    def from_dict(self, data):
-        self.term = data["term"]
-        self.definition = data["definition"]
-        self.mistakes = data["mistakes"]
-
-
-cards = {}
-
-
-def filter_by_definition(definition):
-    return list(filter(lambda c: c.definition == definition, cards.values()))
-
-
-def add_card():
-    card = Card()
-    print("The card:")
-    card.term = enter_term()
-    print("The definition of the card:")
-    card.definition = enter_definition()
-    print(f'The pair ("{card.term}":"{card.definition}") has been added.')
-    cards[card.term] = card
-    action()
-
-
-def enter_term():
-    term = input()
-    if term in cards:
-        print(f'The term "{term}" already exists. Try again:')
-        return enter_term()
-    else:
-        return term
-
-
-def enter_definition():
-    definition = input()
-    existing = filter_by_definition(definition)
-    if len(existing) > 0:
-        print(f'The definition "{definition}" already exists. Try again:')
-        return enter_definition()
-    else:
-        return definition
-
-
-def remove_card():
-    print("Which card?")
-    term = input()
-    if term not in cards:
-        print(f'Can\'t remove "{term}": there is no such card."')
-    else:
-        cards.pop(term)
-        print(f'The card has been removed.')
-    action()
-
-
-def import_cards():
-    print("File name:")
-    filename = input()
-    import_cards_from_file(filename)
-
-
-def import_cards_from_file(filename):
-    try:
-        with open(filename, "r") as file:
-            data = json.load(file)
-            for card in data:
-                new_card = Card()
-                new_card.from_dict(card)
-                cards[new_card.term] = new_card
-            print(f"{len(data)} cards have been loaded.")
-    except FileNotFoundError:
-        print("File not found.")
-    action()
-
-
-def export_cards():
-    print("File name:")
-    filename = input()
-    export_cards_to_file(filename)
-    action()
-
-
-def export_cards_to_file(filename):
-    data = [c.to_dict() for c in cards.values()]
-    with open(filename, 'w') as file:
-        json.dump(data, file)
-    print(f"{len(data)} cards have been saved.")
-
-
-def ask_cards():
-    print("How many times to ask?")
-    number = int(input())
-    card_list = list(cards.values())
-    for i in range(number):
-        card = card_list[i % len(card_list)]
-        print(f'Print the definition of "{card.term}":')
-        answer = input()
-        if answer == card.definition:
-            print("Correct!")
-        else:
-            existing = filter_by_definition(answer)
-            if len(existing) > 0:
-                other = existing[0]
-                print(
-                    f'Wrong. The right answer is "{card.definition}", but your definition is correct for "{other.term}".')
+        def remove():
+            card_to_remove = input("Which card?\n")
+            if card_to_remove in cards_dict:
+                cards_dict.pop(card_to_remove)
+                print("The card has been removed.")
             else:
-                print(f'Wrong. The right answer is "{card.definition}".')
-            card.count_mistakes()
-    action()
+                print(
+                    f'''Can't remove "{card_to_remove}": there is no such card.''')
+
+        def import_file():
+            global cards_dict
+            print("File name:")
+            user_input = input()
+
+            try:
+                with open(user_input, "r") as file:
+                    data = file.read()
+                    imported_dict = eval(data)
+                    print(f'{len(imported_dict)} cards have been loaded.')
+
+                    for card in cards_dict:
+                        if card in imported_dict:
+                            cards_dict[card] = imported_dict.get(card)
+                            imported_dict.pop(card)
+
+                    cards_dict.update(imported_dict)
+                    print(cards_dict)
+
+            except FileNotFoundError:
+                print("File not found.")
+                program()
+
+        def export():
+            file_name = input("File name:\n")
+            with open(file_name, 'w') as file:
+                file.write(str(cards_dict))
+                print(f"{len(cards_dict)} cards have been saved.")
+
+        def ask():
+            num = int(input("How many times to ask?\n"))
+            dict = {}
+
+            for item in range(num):
+                key, value = random.choice(list(cards_dict.items()))
+                dict[key] = value
+
+            for term in dict:
+                answer = input(f'Print the definition of "{term}":\n')
+                if answer == dict[term]:
+                    print("Correct!")
+                elif answer != dict[term]:
+                    if answer in dict.values():
+                        obj = "".join([key for key, value in dict.items() if value == answer])
+                        print(f'Wrong. The right answer is "{dict[term]}", but your definition is correct for "{obj}".')
+                    else:
+                        print(f'Wrong. The right answer is "{dict[term]}".')
+
+        if action == "exit":
+            print("Bye bye!")
+            break
+        elif action == "add":
+            add_cards()
+        elif action == "remove":
+            remove()
+        elif action == "import":
+            import_file()
+        elif action == "export":
+            export()
+        elif action == "ask":
+            ask()
 
 
-def save_log():
-    print("File name:")
-    filename = input()
-    content = memory.getvalue()
-    with open(filename, 'w') as file:
-        file.write(content)
-    print("The log has been saved.")
-    action()
 
-
-def hardest_cards():
-    max_mistakes = max((card.mistakes for card in cards.values()), default=0)
-    if max_mistakes <= 0:
-        print("There are no cards with errors.")
-    else:
-        hardest = [f'"{card.term}"' for card in cards.values() if card.mistakes == max_mistakes]
-        if len(hardest) > 1:
-            print(f"The hardest card are {','.join(hardest)}. You have {max_mistakes} errors answering them.")
-        else:
-            print(f"The hardest card is {hardest[0]}. You have {max_mistakes} errors answering it.")
-    action()
-
-
-def reset_stats():
-    for card in cards.values():
-        card.mistakes = 0
-    print("Card statistics have been reset.")
-    action()
-
-
-def action():
-    print("Input the action (add, remove, import, export, ask, exit, log, hardest card, reset stats)):")
-    cmd = input()
-    if cmd == cmd_add:
-        add_card()
-    elif cmd == cmd_rem:
-        remove_card()
-    elif cmd == cmd_import:
-        import_cards()
-    elif cmd == cmd_export:
-        export_cards()
-    elif cmd == cmd_ask:
-        ask_cards()
-    elif cmd == cmd_log:
-        save_log()
-    elif cmd == cmd_hardest:
-        hardest_cards()
-    elif cmd == cmd_reset:
-        reset_stats()
-    else:
-        if args.export_to:
-            export_cards_to_file(args.export_to)
-        print("Bye bye!")
-
-
-args = parser.parse_args()
-if args.import_from:
-    import_cards_from_file(args.import_from)
-else:
-    action()
+program()
